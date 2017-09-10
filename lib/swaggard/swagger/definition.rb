@@ -10,7 +10,7 @@ module Swaggard
       end
 
       def add_property(property)
-        @properties << property
+        property.kind_of?(Array) ? @properties.concat(property) : @properties << property
       end
 
       def to_doc

@@ -3,12 +3,13 @@ require_relative 'swagger/path'
 module Swaggard
   class ApiDefinition
 
-    attr_accessor :definitions
+    attr_accessor :definitions, :alias_names
 
     def initialize
       @paths        = {}
       @tags         = {}
       @definitions  = []
+      @alias_names  = []
     end
 
     def add_tag(tag)

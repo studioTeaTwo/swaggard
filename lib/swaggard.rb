@@ -23,6 +23,7 @@ module Swaggard
     # Register some custom yard tags
     def register_custom_yard_tags!
       ::YARD::Tags::Library.define_tag('Controller\'s tag',  :tag)
+      ::YARD::Tags::Library.define_tag('Object Name', :name)   
       ::YARD::Tags::Library.define_tag('Query parameter', :query_parameter)
       ::YARD::Tags::Library.define_tag('Form parameter',  :form_parameter)
       ::YARD::Tags::Library.define_tag('Body parameter',  :body_parameter)
@@ -36,6 +37,7 @@ module Swaggard
       load!
 
       doc = @api.to_doc
+      doc = replace_alias(doc)
 
       doc['host'] = host if doc['host'].blank?
 
@@ -54,16 +56,19 @@ module Swaggard
     def parse_controllers
       parser = Parsers::Controllers.new
 
+      alias_names = []
       Dir[configuration.controllers_path].each do |file|
         yard_objects = get_yard_objects(file)
 
-        tag, operations = parser.run(yard_objects, routes)
+        tag, operations, alias_name = parser.run(yard_objects, routes)
 
         next unless tag
 
         @api.add_tag(tag)
         operations.each { |operation| @api.add_operation(operation) }
+        alias_names.concat(alias_name)
       end
+      @api.alias_names.concat(alias_names)
     end
 
     def routes
@@ -76,16 +81,18 @@ module Swaggard
     def parse_models
       parser = Parsers::Models.new
 
-      definitions =[]
+      definitions, alias_names = [], []
       configuration.models_paths.each do |path|
         Dir[path].each do |file|
           yard_objects = get_yard_objects(file)
 
-          definitions.concat(parser.run(yard_objects))
+          definition, alias_name = parser.run(yard_objects)
+          definitions.concat(definition)
+          alias_names.concat(alias_name)
         end
-
-        @api.definitions = definitions
       end
+      @api.definitions = definitions
+      @api.alias_names.concat(alias_names)
     end
 
     def get_yard_objects(file)
@@ -94,6 +101,17 @@ module Swaggard
       ::YARD::Registry.clear
 
       yard_objects
+    end
+
+    def replace_alias(doc)
+      unless @api.alias_names.empty?
+        str = JSON.generate(doc)
+        @api.alias_names.each do |name|
+          str.gsub!(/#{name.original}/, name.alias)
+        end
+        doc = JSON.load(str)
+      end
+      doc
     end
 
   end
